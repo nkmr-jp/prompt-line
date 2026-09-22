@@ -10,6 +10,9 @@ export class DomManager implements IInitializable {
   public searchInput: HTMLInputElement | null = null;
   public hintTextEl: HTMLElement | null = null;
   public headerEl: HTMLElement | null = null;
+  // App name to restore after a transient error; non-null while an error is shown
+  private appNameBeforeError: string | null = null;
+  private errorTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Initialize DOM elements (IInitializable implementation)
@@ -65,6 +68,11 @@ export class DomManager implements IInitializable {
   }
 
   public updateAppName(name: string): void {
+    if (this.appNameBeforeError !== null) {
+      // Keep the error visible; show the new name once it expires
+      this.appNameBeforeError = name;
+      return;
+    }
     if (this.appNameEl) {
       this.appNameEl.textContent = name;
     }
@@ -78,16 +86,27 @@ export class DomManager implements IInitializable {
 
   public showError(message: string, duration: number = 2000): void {
     if (!this.appNameEl) return;
-    
-    const originalText = this.appNameEl.textContent;
-    this.appNameEl.textContent = `Error: ${message}`;
+
+    // Capture the app name only once, so overlapping errors never restore a previous error text
+    if (this.appNameBeforeError === null) {
+      this.appNameBeforeError = this.appNameEl.textContent ?? '';
+    }
+    if (this.errorTimer) {
+      clearTimeout(this.errorTimer);
+    }
+
+    // The header has room for one line only; multi-line output (e.g. a stack trace) keeps its first line
+    const firstLine = message.split('\n').find(line => line.trim())?.trim() ?? message;
+    this.appNameEl.textContent = `Error: ${firstLine}`;
     this.appNameEl.classList.add('app-name-error');
 
-    setTimeout(() => {
+    this.errorTimer = setTimeout(() => {
+      this.errorTimer = null;
       if (this.appNameEl) {
-        this.appNameEl.textContent = originalText;
+        this.appNameEl.textContent = this.appNameBeforeError;
         this.appNameEl.classList.remove('app-name-error');
       }
+      this.appNameBeforeError = null;
     }, duration);
   }
 
