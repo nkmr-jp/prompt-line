@@ -1,6 +1,6 @@
 /* Input Section Layout */
 .input-section {
-    @apply flex-[2] flex flex-col relative; /* Required for file suggestions absolute positioning */
+    @apply flex-[2] flex flex-col relative min-w-0; /* relative: file suggestions positioning; min-w-0: long content must not widen the section */
 }
 
 .input-wrapper {
@@ -78,11 +78,18 @@
     @apply font-medium;
     font-size: var(--font-size-md);
     color: oklch(from var(--color-white) l c h / 0.5);
+    /* Long messages (e.g. errors) must not wrap over the input */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .shortcuts {
     font-size: var(--font-size-base);
     color: var(--text-tertiary);
+    flex-shrink: 0;
+    margin-left: var(--spacing-md);
 }
 
 /* Text input container for highlight backdrop */

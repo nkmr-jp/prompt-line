@@ -98,6 +98,7 @@ export class AgentSkillManager implements IInitializable {
   // Hint text callbacks for footer area
   private updateHintText: ((text: string) => void) | undefined;
   private getDefaultHintText: (() => string) | undefined;
+  private showSuccess: ((message: string) => void) | undefined;
 
   constructor(callbacks: {
     onSkillSelect?: (command: string) => void;
@@ -106,12 +107,14 @@ export class AgentSkillManager implements IInitializable {
     setDraggable?: (enabled: boolean) => void;
     updateHintText?: (text: string) => void;
     getDefaultHintText?: () => string;
+    showSuccess?: (message: string) => void;
   }) {
     this.onSkillInsert = callbacks.onSkillInsert || (() => {});
     this.onBeforeOpenFile = callbacks.onBeforeOpenFile;
     this.setDraggable = callbacks.setDraggable;
     this.updateHintText = callbacks.updateHintText;
     this.getDefaultHintText = callbacks.getDefaultHintText;
+    this.showSuccess = callbacks.showSuccess;
     this.frontmatterPopupManager = new FrontmatterPopupManager({
       getSuggestionsContainer: () => this.suggestionsContainer,
       getFilteredSkills: () => this.filteredSkills,
@@ -153,25 +156,6 @@ export class AgentSkillManager implements IInitializable {
   public initialize(): void {
     this.initializeElements();
     this.setupEventListeners();
-  }
-
-  /**
-   * Show a notification for copied feedback in the app name area
-   */
-  private showCopiedNotification(): void {
-    const appNameEl = document.getElementById('appName');
-    if (!appNameEl) return;
-
-    const originalText = appNameEl.textContent;
-    appNameEl.textContent = '✓ Copied to clipboard';
-    appNameEl.classList.add('app-name-success');
-
-    setTimeout(() => {
-      if (appNameEl) {
-        appNameEl.textContent = originalText;
-        appNameEl.classList.remove('app-name-success');
-      }
-    }, 1500);
   }
 
   public initializeElements(): void {
@@ -252,7 +236,7 @@ export class AgentSkillManager implements IInitializable {
               try {
                 await navigator.clipboard.writeText(argumentHint);
                 // Show toast notification
-                this.showCopiedNotification();
+                this.showSuccess?.('✓ Copied to clipboard');
               } catch (error) {
                 console.error('Failed to copy argumentHint to clipboard:', error);
               }
@@ -269,7 +253,7 @@ export class AgentSkillManager implements IInitializable {
             try {
               await navigator.clipboard.writeText(command.argumentHint);
               // Show toast notification
-              this.showCopiedNotification();
+              this.showSuccess?.('✓ Copied to clipboard');
             } catch (error) {
               console.error('Failed to copy argumentHint to clipboard:', error);
             }
