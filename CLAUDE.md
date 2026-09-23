@@ -101,9 +101,9 @@ Uses [Release Please](https://github.com/googleapis/release-please) for automate
 
 Pushes to `main` with conventional commits automatically trigger a Release Please PR with version bump and CHANGELOG updates. Merging that PR creates a GitHub Release, after which the same workflow builds the signed DMG, attaches it to the release, and bumps the cask in `nkmr-jp/homebrew-tap` (see `build-dmg` / `update-tap` jobs; requires `PROMPT_LINE_CERT_P12`, `PROMPT_LINE_CERT_PASSWORD`, and `TAP_GITHUB_TOKEN` secrets).
 
-## リリース手順
+## Release Recipe
 
-Read by the issue-release skill (the heading is detected by name, so keep it in Japanese).
+Read by the issue-release skill, which finds this section by its heading — keep the name.
 
 - Merge: `gh pr merge <N> --squash` (see Pull Request Guidelines for why not `--merge`). Remote branches are not deleted.
 - Pre-merge check: the PR's `test` check only.
