@@ -108,7 +108,7 @@ Read by the issue-release skill, which finds this section by its heading — kee
 - Merge: `gh pr merge <N> --squash` (see Pull Request Guidelines for why not `--merge`). Remote branches are not deleted.
 - Pre-merge check: the PR's `test` check only.
 - Reflection (in the main worktree, after `git pull --ff-only`): none. Merging to `main` only updates the Release Please PR; there is nothing to run locally. Do not use `pnpm run install-app` — the installed app comes from the Homebrew cask.
-- Not reflected by the merge: the installed app. It picks up the change only after the Release Please PR is merged and the `build-dmg` / `update-tap` jobs finish; then run `brew upgrade --cask prompt-line`, restart Prompt Line, and confirm with `defaults read "/Applications/Prompt Line.app/Contents/Info" CFBundleShortVersionString`.
+- Not reflected by the merge: the installed app. It picks up the change only after the Release Please PR is merged and the `build-dmg` / `update-tap` jobs finish; then run `brew update && brew upgrade --cask prompt-line` (a bare `brew upgrade` skips refreshing the `nkmr-jp/tap` tap for up to 24 hours after the last update, per `HOMEBREW_AUTO_UPDATE_SECS`, and reports the old version as the latest), restart Prompt Line, and confirm with `defaults read "/Applications/Prompt Line.app/Contents/Info" CFBundleShortVersionString`.
 - Needs an explicit instruction: merging the Release Please PR (it publishes a GitHub Release, DMG, and cask bump).
 - Delegate to: none.
 - Cleanup: none. Orca-managed worktrees are removed from Orca.
