@@ -101,6 +101,18 @@ Uses [Release Please](https://github.com/googleapis/release-please) for automate
 
 Pushes to `main` with conventional commits automatically trigger a Release Please PR with version bump and CHANGELOG updates. Merging that PR creates a GitHub Release, after which the same workflow builds the signed DMG, attaches it to the release, and bumps the cask in `nkmr-jp/homebrew-tap` (see `build-dmg` / `update-tap` jobs; requires `PROMPT_LINE_CERT_P12`, `PROMPT_LINE_CERT_PASSWORD`, and `TAP_GITHUB_TOKEN` secrets).
 
+## Release Recipe
+
+Read by the issue-release skill, which finds this section by its heading — keep the name.
+
+- Merge: `gh pr merge <N> --squash` (see Pull Request Guidelines for why not `--merge`). Remote branches are not deleted.
+- Pre-merge check: the PR's `test` check only.
+- Reflection (in the main worktree, after `git pull --ff-only`): none. Merging to `main` only updates the Release Please PR; there is nothing to run locally. Do not use `pnpm run install-app` — the installed app comes from the Homebrew cask.
+- Not reflected by the merge: the installed app. It picks up the change only after the Release Please PR is merged and the `build-dmg` / `update-tap` jobs finish; then run `brew upgrade --cask prompt-line`, restart Prompt Line, and confirm with `defaults read "/Applications/Prompt Line.app/Contents/Info" CFBundleShortVersionString`.
+- Needs an explicit instruction: merging the Release Please PR (it publishes a GitHub Release, DMG, and cask bump).
+- Delegate to: none.
+- Cleanup: none. Orca-managed worktrees are removed from Orca.
+
 ## Architecture Overview
 
 ### Electron Process Architecture
