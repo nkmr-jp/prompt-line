@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.5](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.4...prompt-line-v0.41.5) (2026-09-23)
+
+
+### Documentation
+
+* add release recipe section for issue-release (PL-17) ([#444](https://github.com/nkmr-jp/prompt-line/issues/444)) ([6688fdd](https://github.com/nkmr-jp/prompt-line/commit/6688fdd791fd9d506b541ed8d06572a404597af2))
+
 ## [0.41.4](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.3...prompt-line-v0.41.4) (2026-09-22)
 
 
