@@ -366,7 +366,9 @@ extension DirectoryDetector {
                    let path = worktreePath(fromOrcaWorktreeId: activeId) {
                     return path
                 }
-                continue
+                // "orca" and "Orca" are the same directory on the default
+                // case-insensitive volume; don't query the same database twice.
+                return nil
             }
             guard let data = try? Data(contentsOf: profileURL.appendingPathComponent("orca-data.json")),
                   let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -389,8 +391,11 @@ extension DirectoryDetector {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
         // Read-only, and .timeout keeps a writer holding the lock from blocking us.
+        // -init /dev/null skips ~/.sqliterc so a user's .mode/.headers cannot
+        // change the output format we parse.
         process.arguments = [
-            "-readonly", "-cmd", ".timeout 500", dbURL.path,
+            "-readonly", "-batch", "-init", "/dev/null", "-noheader", "-list",
+            "-cmd", ".timeout 500", dbURL.path,
             "SELECT json_extract(payload, '$.activeWorktreeId') FROM profile_state_documents WHERE domain = 'workspaceSession'"
         ]
 
