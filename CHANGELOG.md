@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.41.6](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.5...prompt-line-v0.41.6) (2026-09-29)
+
+
+### Bug Fixes
+
+* **native:** read Orca active worktree from profile-state.db (PL-19) ([#448](https://github.com/nkmr-jp/prompt-line/issues/448)) ([936855d](https://github.com/nkmr-jp/prompt-line/commit/936855d7233844cce44229ca8d26f13484db3f78))
+
+
+### Documentation
+
+* run brew update before cask upgrade in release recipe (PL-17) ([#446](https://github.com/nkmr-jp/prompt-line/issues/446)) ([f72d2b2](https://github.com/nkmr-jp/prompt-line/commit/f72d2b29f0472e0157c6135ccdaed4ecbe01ad48))
+
 ## [0.41.5](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.4...prompt-line-v0.41.5) (2026-09-23)
 
 
