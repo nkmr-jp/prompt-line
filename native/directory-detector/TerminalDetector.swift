@@ -354,18 +354,67 @@ extension DirectoryDetector {
     private static func getOrcaActiveWorktreeFromState() -> String? {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         for directory in ["orca", "Orca"] {
-            let stateURL = support
+            let profileURL = support
                 .appendingPathComponent(directory, isDirectory: true)
-                .appendingPathComponent("profiles/local-default/orca-data.json")
-            guard let data = try? Data(contentsOf: stateURL),
+                .appendingPathComponent("profiles/local-default", isDirectory: true)
+            // Orca moved its persisted state into profile-state.db; since then
+            // orca-data.json is only a frozen export of the pre-migration state,
+            // so it must not win while the database exists.
+            let dbURL = profileURL.appendingPathComponent("profile-state.db")
+            if FileManager.default.fileExists(atPath: dbURL.path) {
+                if let activeId = readOrcaActiveWorktreeIdFromDatabase(dbURL),
+                   let path = worktreePath(fromOrcaWorktreeId: activeId) {
+                    return path
+                }
+                // "orca" and "Orca" are the same directory on the default
+                // case-insensitive volume; don't query the same database twice.
+                return nil
+            }
+            guard let data = try? Data(contentsOf: profileURL.appendingPathComponent("orca-data.json")),
                   let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                   let session = json["workspaceSession"] as? [String: Any],
                   let activeId = session["activeWorktreeId"] as? String,
-                  let separator = activeId.range(of: "::") else { continue }
-            let path = String(activeId[separator.upperBound...])
-            if path.hasPrefix("/") { return path }
+                  let path = worktreePath(fromOrcaWorktreeId: activeId) else { continue }
+            return path
         }
         return nil
+    }
+
+    /// Orca worktree ids are `<repoId>::<absolute path>`.
+    private static func worktreePath(fromOrcaWorktreeId id: String) -> String? {
+        guard let separator = id.range(of: "::") else { return nil }
+        let path = String(id[separator.upperBound...])
+        return path.hasPrefix("/") ? path : nil
+    }
+
+    private static func readOrcaActiveWorktreeIdFromDatabase(_ dbURL: URL) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+        // Read-only, and .timeout keeps a writer holding the lock from blocking us.
+        // -init /dev/null skips ~/.sqliterc so a user's .mode/.headers cannot
+        // change the output format we parse.
+        process.arguments = [
+            "-readonly", "-batch", "-init", "/dev/null", "-noheader", "-list",
+            "-cmd", ".timeout 500", dbURL.path,
+            "SELECT json_extract(payload, '$.activeWorktreeId') FROM profile_state_documents WHERE domain = 'workspaceSession'"
+        ]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0,
+                  let output = String(data: data, encoding: .utf8)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                  !output.isEmpty else { return nil }
+            return output
+        } catch {
+            return nil
+        }
     }
 
     private static func runOrcaCli(appPid: pid_t, args: [String]) -> Data? {
