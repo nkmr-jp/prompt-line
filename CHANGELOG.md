@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.41.7](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.6...prompt-line-v0.41.7) (2026-11-05)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump electron from 44.2.0 to 44.9.1 in the npm_and_yarn group across 1 directory ([#451](https://github.com/nkmr-jp/prompt-line/issues/451)) ([ad932a5](https://github.com/nkmr-jp/prompt-line/commit/ad932a5fc33402d3b251a889f7d18c78e5be1598))
+* **deps-dev:** bump vite, vitest and transitive deps to fix Dependabot alerts ([#455](https://github.com/nkmr-jp/prompt-line/issues/455)) ([ea0e45a](https://github.com/nkmr-jp/prompt-line/commit/ea0e45a3b2b1d9f2f404641e14e48db4f034ec97))
+
 ## [0.41.6](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.5...prompt-line-v0.41.6) (2026-09-29)
 
 
