@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.8](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.7...prompt-line-v0.41.8) (2026-11-05)
+
+
+### Bug Fixes
+
+* **deps:** bump glob to 14 and raise minimatch/qs overrides for Dependabot alerts ([#456](https://github.com/nkmr-jp/prompt-line/issues/456)) ([03683a4](https://github.com/nkmr-jp/prompt-line/commit/03683a4527595da51f1d57764e641ed724a87a9d))
+
 ## [0.41.7](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.6...prompt-line-v0.41.7) (2026-11-05)
 
 
