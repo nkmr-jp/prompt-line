@@ -11,9 +11,9 @@ overrides:
   rimraf: ^6.0.0
   glob: $glob
   jsdom: ^27.0.0
-  minimatch: ">=10.2.1"
+  minimatch: ">=11.0.1"
   "ajv@<6.14.0": 6.14.0
   "ajv@>=7.0.0-alpha.0 <8.18.0": 8.18.0
   yauzl: ">=3.2.1"
   tmp: ">=0.2.6"
-  qs: ">=6.15.2"
+  qs: ">=6.16.1"
