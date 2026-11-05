@@ -58,7 +58,7 @@
     "@types/node": "^20.19.43",
     "@typescript-eslint/eslint-plugin": "^8.69.0",
     "@typescript-eslint/parser": "^8.69.0",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.12",
     "@vitest/eslint-plugin": "^1.6.27",
     "electron": "^44.9.1",
     "electron-builder": "26.15.3",
@@ -70,8 +70,8 @@
     "knip": "^6.34.0",
     "ts-node": "^10.9.2",
     "typescript": "~5.5.4",
-    "vite": "^6.4.3",
-    "vitest": "^4.1.11"
+    "vite": "^6.4.5",
+    "vitest": "^4.1.12"
   },
   "build": {
     "appId": "com.electron.prompt-line",
