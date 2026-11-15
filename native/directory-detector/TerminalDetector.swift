@@ -388,6 +388,33 @@ extension DirectoryDetector {
     }
 
     private static func readOrcaActiveWorktreeIdFromDatabase(_ dbURL: URL) -> String? {
+        // Orca splits large documents into profile_state_document_parts (one
+        // row per top-level key) and then stops updating the whole-document row
+        // in profile_state_documents. Pick the source by layout, not by which
+        // one yields a value: a null part must not fall back to the frozen
+        // whole-document row.
+        let partsAware = """
+            SELECT CASE WHEN EXISTS (
+                SELECT 1 FROM profile_state_document_parts_meta WHERE domain = 'workspaceSession'
+            ) THEN (
+                SELECT json_extract(payload, '$') FROM profile_state_document_parts
+                WHERE domain = 'workspaceSession' AND part_key = '["activeWorktreeId"]'
+            ) ELSE (
+                SELECT json_extract(payload, '$.activeWorktreeId') FROM profile_state_documents
+                WHERE domain = 'workspaceSession'
+            ) END
+            """
+        if let rows = queryOrcaStateDatabase(dbURL, sql: partsAware) {
+            return rows.isEmpty ? nil : rows
+        }
+        // The query fails to prepare on databases that predate the parts tables.
+        let legacy = "SELECT json_extract(payload, '$.activeWorktreeId') FROM profile_state_documents WHERE domain = 'workspaceSession'"
+        guard let rows = queryOrcaStateDatabase(dbURL, sql: legacy), !rows.isEmpty else { return nil }
+        return rows
+    }
+
+    /// Returns the trimmed output, or nil when sqlite3 itself failed.
+    private static func queryOrcaStateDatabase(_ dbURL: URL, sql: String) -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
         // Read-only, and .timeout keeps a writer holding the lock from blocking us.
@@ -395,8 +422,7 @@ extension DirectoryDetector {
         // change the output format we parse.
         process.arguments = [
             "-readonly", "-batch", "-init", "/dev/null", "-noheader", "-list",
-            "-cmd", ".timeout 500", dbURL.path,
-            "SELECT json_extract(payload, '$.activeWorktreeId') FROM profile_state_documents WHERE domain = 'workspaceSession'"
+            "-cmd", ".timeout 500", dbURL.path, sql
         ]
 
         let pipe = Pipe()
@@ -408,10 +434,8 @@ extension DirectoryDetector {
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
             guard process.terminationStatus == 0,
-                  let output = String(data: data, encoding: .utf8)?
-                    .trimmingCharacters(in: .whitespacesAndNewlines),
-                  !output.isEmpty else { return nil }
-            return output
+                  let output = String(data: data, encoding: .utf8) else { return nil }
+            return output.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
             return nil
         }
