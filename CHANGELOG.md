@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.9](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.8...prompt-line-v0.41.9) (2026-11-19)
+
+
+### Bug Fixes
+
+* **native:** read Orca active worktree from split state parts (PL-20) ([#458](https://github.com/nkmr-jp/prompt-line/issues/458)) ([eacbcdf](https://github.com/nkmr-jp/prompt-line/commit/eacbcdfe62d092b4d6a4342ea21dc3c9ee9061a9))
+
 ## [0.41.8](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.7...prompt-line-v0.41.8) (2026-11-05)
 
 
