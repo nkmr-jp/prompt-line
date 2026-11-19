@@ -390,9 +390,9 @@ extension DirectoryDetector {
     private static func readOrcaActiveWorktreeIdFromDatabase(_ dbURL: URL) -> String? {
         // Orca splits large documents into profile_state_document_parts (one
         // row per JSON path; scalar top-level keys such as activeWorktreeId get
-        // a one-element path) and then stops updating the whole-document row
-        // in profile_state_documents. Pick the source by layout, not by which
-        // one yields a value: a null part must not fall back to the frozen
+        // a one-element path) and then rewrites the whole-document row in
+        // profile_state_documents only occasionally, leaving it hours behind. Pick the source by layout, not by which
+        // one yields a value: a null part must not fall back to the stale
         // whole-document row.
         let partsAware = """
             SELECT CASE WHEN EXISTS (
@@ -408,7 +408,7 @@ extension DirectoryDetector {
         // The query fails to prepare on databases that predate the parts tables.
         // It can also fail on a split database (lock timeout, malformed part),
         // so the fallback re-checks the layout instead of trusting the failure:
-        // it must never read the frozen whole-document row once parts exist.
+        // it must never read the stale whole-document row once parts exist.
         let legacy = """
             SELECT json_extract(payload, '$.activeWorktreeId') FROM profile_state_documents
             WHERE domain = 'workspaceSession' AND NOT EXISTS (
