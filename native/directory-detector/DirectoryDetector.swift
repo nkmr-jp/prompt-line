@@ -192,6 +192,29 @@ class DirectoryDetector {
             ]
         }
 
+        if isHerdr(bundleId) {
+            let result = getHerdrDirectory(appPid: appPid)
+            if let directory = result.directory {
+                var response: [String: Any] = [
+                    "success": true,
+                    "directory": directory,
+                    "appName": appName,
+                    "bundleId": bundleId,
+                    "method": "herdr-cli"
+                ]
+                if let pid = result.shellPid {
+                    response["pid"] = pid
+                }
+                return response
+            }
+
+            return [
+                "error": "Failed to detect directory from \(appName)",
+                "appName": appName,
+                "bundleId": bundleId
+            ]
+        }
+
         if isCmux(bundleId) {
             if let cwd = getCmuxWorkingDirectory() {
                 // cmux reports the pane's shell cwd, which a Claude Code session

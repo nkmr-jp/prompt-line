@@ -459,13 +459,22 @@ extension DirectoryDetector {
         let cliURL = bundleURL.appendingPathComponent("Contents/Resources/bin/orca")
         guard FileManager.default.isExecutableFile(atPath: cliURL.path) else { return nil }
 
-        let process = Process()
-        process.executableURL = cliURL
-        process.arguments = args
         // Outside every managed worktree, `terminal show` resolves Orca's
         // globally selected terminal. From inside a worktree it intentionally
         // scopes itself to that worktree, which is not what Prompt Line needs.
-        process.currentDirectoryURL = URL(fileURLWithPath: "/", isDirectory: true)
+        return runCli(cliURL, args: args, currentDirectory: URL(fileURLWithPath: "/", isDirectory: true))
+    }
+
+    /// Run a CLI and return its stdout, or nil on a non-zero exit or when it
+    /// does not finish within `timeout` (it is killed then). The deadline keeps a
+    /// wedged app from stalling the whole detection.
+    static func runCli(_ executableURL: URL, args: [String], currentDirectory: URL? = nil, timeout: TimeInterval = 0.5) -> Data? {
+        let process = Process()
+        process.executableURL = executableURL
+        process.arguments = args
+        if let currentDirectory = currentDirectory {
+            process.currentDirectoryURL = currentDirectory
+        }
 
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -474,9 +483,20 @@ extension DirectoryDetector {
         let finished = DispatchSemaphore(value: 0)
         process.terminationHandler = { _ in finished.signal() }
 
+        // stdout is drained while the CLI runs, not after it exits: reading only
+        // after exit stalls a CLI whose output outgrows the pipe buffer, and a
+        // daemon it spawns can inherit the pipe and keep EOF from ever arriving.
+        var output = Data()
+        let drained = DispatchSemaphore(value: 0)
+
         do {
             try process.run()
-            guard finished.wait(timeout: .now() + 0.5) == .success else {
+            DispatchQueue.global(qos: .userInitiated).async {
+                output = pipe.fileHandleForReading.readDataToEndOfFile()
+                drained.signal()
+            }
+            let deadline = DispatchTime.now() + timeout
+            guard finished.wait(timeout: deadline) == .success else {
                 process.terminate()
                 if finished.wait(timeout: .now() + 0.1) == .timedOut {
                     kill(process.processIdentifier, SIGKILL)
@@ -484,8 +504,9 @@ extension DirectoryDetector {
                 }
                 return nil
             }
-            guard process.terminationStatus == 0 else { return nil }
-            return pipe.fileHandleForReading.readDataToEndOfFile()
+            guard process.terminationStatus == 0,
+                  drained.wait(timeout: max(deadline, .now() + 0.05)) == .success else { return nil }
+            return output
         } catch {
             return nil
         }
