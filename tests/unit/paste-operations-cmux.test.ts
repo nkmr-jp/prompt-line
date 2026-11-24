@@ -114,6 +114,24 @@ describe('activateAndPasteWithNativeTool — terminal paste dispatch', () => {
     expect(firstCall[1]).toEqual(['activate-and-paste-bundle', 'com.googlecode.iterm2']);
   });
 
+  it('pastes by bundle ID even when the app name contains punctuation', async () => {
+    mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
+      cb(null, JSON.stringify({ success: true }), '');
+    });
+
+    await activateAndPasteWithNativeTool({ name: 'T3 Code (Beta)', bundleId: 'com.t3tools.t3code' });
+
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+    expect(mockExecFile.mock.calls[0]![1]).toEqual(['activate-and-paste-bundle', 'com.t3tools.t3code']);
+  });
+
+  it('still rejects an unsafe app name when no bundle ID is available', async () => {
+    await expect(activateAndPasteWithNativeTool('T3 Code (Beta)')).rejects.toThrow(
+      'App name contains unsafe characters'
+    );
+    expect(mockExecFile).not.toHaveBeenCalled();
+  });
+
   afterAll(() => {
     Object.defineProperty(process, 'platform', { value: ORIGINAL_PLATFORM });
   });
