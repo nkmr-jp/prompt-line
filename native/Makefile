@@ -22,6 +22,7 @@ DIRECTORY_DETECTOR_SOURCES = \
 	directory-detector/ProcessTree.swift \
 	directory-detector/ClaudeCodeDetector.swift \
 	directory-detector/MultiplexerDetector.swift \
+	directory-detector/T3CodeDetector.swift \
 	directory-detector/DirectoryDetector.swift \
 	directory-detector/main.swift
 

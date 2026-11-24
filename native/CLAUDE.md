@@ -29,7 +29,7 @@ Deployment target is pinned to macOS 13 (Ventura) via `-target $(ARCH)-apple-mac
 
 ### directory-detector is multi-file
 Other 3 tools are single `.swift` files, but `directory-detector/` is a directory:
-- `main.swift`, `DirectoryDetector.swift`, `CWDDetector.swift`, `TerminalDetector.swift`, `IDEDetector.swift`, `ProcessTree.swift`, `ClaudeCodeDetector.swift`, `MultiplexerDetector.swift`
+- `main.swift`, `DirectoryDetector.swift`, `CWDDetector.swift`, `TerminalDetector.swift`, `IDEDetector.swift`, `ProcessTree.swift`, `ClaudeCodeDetector.swift`, `MultiplexerDetector.swift`, `T3CodeDetector.swift`
 - Requires `libproc-bridge.h` bridging header (uses libproc for CWD detection, 10-50x faster than lsof)
 
 ### text-field-detector container detection
@@ -38,7 +38,7 @@ Other 3 tools are single `.swift` files, but `directory-detector/` is a director
 - Stops at AXWindow level to avoid returning entire window bounds
 
 ### Supported applications (directory-detector)
-Terminal.app, iTerm2, Ghostty, Warp, WezTerm, Orca, cmux, JetBrains IDEs, VSCode/Insiders/VSCodium, Cursor, Windsurf, Zed, OpenCode, Antigravity, Kiro
+Terminal.app, iTerm2, Ghostty, Warp, WezTerm, Orca, cmux, T3 Code, JetBrains IDEs, VSCode/Insiders/VSCodium, Cursor, Windsurf, Zed, OpenCode, Antigravity, Kiro
 
 ### cmux directory detection
 cmux (`com.cmuxterm.app`) exposes a `working directory` property on its focused terminal via its AppleScript dictionary (`Contents/Resources/cmux.sdef`). The detector uses AppleScript directly instead of process tree traversal — cmux embeds Ghostty internally, but the parent app's bundle ID is what `NSWorkspace.frontmostApplication` returns, so process-tree detection wouldn't run correctly without explicit handling.
@@ -59,6 +59,14 @@ When "Orca always opens the same directory" comes back, compare `updated_at` of 
 When Orca migrated to the database it left `orca-data.json` behind as a frozen export that is never updated again, so the JSON is consulted **only when the database does not exist** — reading it alongside the database pins detection to whatever worktree was active at migration time. Use `activeWorktreeId`, not `activeWorkspaceKey`: the latter was observed lagging on a worktree the user had already left.
 
 Degrades to nil — and callers to directory-only matching — when cmux is unreachable, when the deadline expires, or when the focused surface reports no tty. The last case is expected for a **brand new** pane, on the assumption that a surface has no tty until its shell has started; that assumption is **unverified** (every surface reported a tty whenever it was checked, so the state could not be reproduced). Note the fallback is not perfectly safe there: a brand new pane in a directory where exactly one other pane sits, and that pane runs an agent, adopts the other pane's worktree.
+
+### T3 Code directory detection
+T3 Code (`com.t3tools.t3code`) gives each thread a working directory — a git worktree under `~/.t3/worktrees/<project>/<id>` or the project root — so the answer is the directory of the thread on screen, not a shell cwd. T3 Code persists no "open thread": the route (`t3code://app/#/<environmentId>/<threadId>`) lives only in the renderer. The detector therefore reads the focused window's `AXTitle`, which the renderer sets to `<project title> / <thread title>` (just the thread title when the project title is empty; the app name on settings, draft and new-thread views), and matches it against `~/.t3/userdata/statev2.sqlite`: `orchestration_v2_projection_threads` joined to `projection_projects`, directory `coalesce($.worktreePath, workspace_root)`. The title goes into the SQL as a hex blob literal, never as quoted text.
+
+- Titles are not unique. Archived threads count only when no live thread matches, and matches that disagree on the directory return nothing (determinism over a guess, as for Claude Code sessions below). A worktree that no longer exists on disk also returns nothing. Every miss returns an error without a directory, so the `app-directories.json` fallback applies.
+- Do not use `$.lastVisitedAt` (or the renderer's `threadLastVisitedAtById` in localStorage) as the current thread: it is a read watermark set to the thread's own `updatedAt`, and revisiting an already-read thread within 10 minutes does not move it.
+- Do not read the `AXWebArea`'s `AXURL` for the thread id: it needs `AXManualAccessibility`, which switches T3 Code's renderer into full accessibility mode, and the tree is not there on the first call.
+- Not handled: the screen-reader title format (`screenReaderWindowTitle` setting), and threads of remote environments, which are not in the local database.
 
 ### Claude Code sessions move without their shell (`ClaudeCodeDetector.swift`)
 Every terminal detector resolves a **shell's** working directory, but Claude Code's `Entering worktree(...)` performs a real `chdir()` inside the CLI process: the agent ends up in the worktree while its parent shell stays where the user started it, and nothing re-emits OSC 7, so Ghostty's `AXDocument`, `wezterm cli`, cmux's AppleScript and tty mtime all keep reporting the pre-move directory. Every terminal path therefore runs `preferClaudeCodeCwd` before returning, which prefers the agent process's own cwd and falls back to the shell's when no agent is running there. Two variants:
