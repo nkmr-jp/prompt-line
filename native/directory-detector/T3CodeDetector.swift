@@ -32,19 +32,23 @@ extension DirectoryDetector {
         // The title is arbitrary user text; a hex blob literal keeps it out of
         // the SQL grammar entirely.
         let titleLiteral = "CAST(X'" + trimmed.utf8.map { String(format: "%02x", $0) }.joined() + "' AS TEXT)"
+        // Same characters Swift's .whitespacesAndNewlines trims above for the
+        // common cases; SQLite's bare trim() strips only spaces.
+        let ws = "' ' || char(9) || char(10) || char(13)"
         // Mirrors the renderer's title: an empty project title leaves only the
         // thread title. Titles are not unique, so archived threads count only
         // when no live thread matches, and matches that disagree on the
         // directory yield nothing rather than a guess.
         let sql = """
             WITH m AS (
-                SELECT coalesce(nullif(json_extract(t.payload_json, '$.worktreePath'), ''), p.workspace_root) AS dir,
-                       t.archived_at IS NOT NULL AS archived
+                SELECT coalesce(nullif(CASE WHEN json_valid(t.payload_json)
+                           THEN json_extract(t.payload_json, '$.worktreePath') END, ''), p.workspace_root) AS dir,
+                       t.archived_at IS NOT NULL OR p.archived_at IS NOT NULL AS archived
                 FROM orchestration_v2_projection_threads t
                 JOIN projection_projects p ON p.project_id = t.project_id
                 WHERE t.deleted_at IS NULL AND p.deleted_at IS NULL
-                  AND CASE WHEN trim(p.title) = '' THEN trim(t.title)
-                           ELSE trim(p.title) || ' / ' || trim(t.title) END = \(titleLiteral)
+                  AND CASE WHEN trim(p.title, \(ws)) = '' THEN trim(t.title, \(ws))
+                           ELSE trim(p.title, \(ws)) || ' / ' || trim(t.title, \(ws)) END = \(titleLiteral)
             ), tier AS (
                 SELECT dir FROM m WHERE archived = (SELECT min(archived) FROM m)
             )
