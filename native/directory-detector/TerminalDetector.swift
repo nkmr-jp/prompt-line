@@ -415,14 +415,14 @@ extension DirectoryDetector {
                 SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'profile_state_document_parts_meta'
             )
             """
-        guard let rows = queryOrcaStateDatabase(dbURL, sql: partsAware)
-                ?? queryOrcaStateDatabase(dbURL, sql: legacy),
+        guard let rows = queryStateDatabase(dbURL, sql: partsAware)
+                ?? queryStateDatabase(dbURL, sql: legacy),
               !rows.isEmpty else { return nil }
         return rows
     }
 
     /// Returns the trimmed output, or nil when sqlite3 itself failed.
-    private static func queryOrcaStateDatabase(_ dbURL: URL, sql: String) -> String? {
+    static func queryStateDatabase(_ dbURL: URL, sql: String) -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
         // Read-only, and .timeout keeps a writer holding the lock from blocking us.

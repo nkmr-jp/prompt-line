@@ -9,6 +9,7 @@ import Foundation
 /// - CWDDetector.swift: CWD detection (libproc + lsof)
 /// - TerminalDetector.swift: Terminal.app, iTerm2, Ghostty, Warp, WezTerm, Orca
 /// - IDEDetector.swift: JetBrains, VSCode, Cursor, Windsurf, Zed, Antigravity, Kiro, OpenCode
+/// - T3CodeDetector.swift: T3 Code
 /// - ProcessTree.swift: Process tree traversal
 /// Note: FileSearch functionality has been moved to separate file-searcher tool
 class DirectoryDetector {
@@ -170,6 +171,24 @@ class DirectoryDetector {
                 "appName": appName,
                 "bundleId": bundleId,
                 "idePid": appPid
+            ]
+        }
+
+        if isT3Code(bundleId) {
+            if let directory = getT3CodeDirectory(appPid: appPid, bundleId: bundleId) {
+                return [
+                    "success": true,
+                    "directory": directory,
+                    "appName": appName,
+                    "bundleId": bundleId,
+                    "method": "t3code-window-title"
+                ]
+            }
+
+            return [
+                "error": "No thread directory found in \(appName)",
+                "appName": appName,
+                "bundleId": bundleId
             ]
         }
 
