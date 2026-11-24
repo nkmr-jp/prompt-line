@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.42.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.42.0...prompt-line-v0.42.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **paste:** paste into apps whose name has punctuation (PL-23) ([#462](https://github.com/nkmr-jp/prompt-line/issues/462)) ([2c2d7d9](https://github.com/nkmr-jp/prompt-line/commit/2c2d7d960249048ebf37658cd138c37efffbf879))
+
 ## [0.42.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.9...prompt-line-v0.42.0) (2026-11-24)
 
 
