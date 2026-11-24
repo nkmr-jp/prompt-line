@@ -29,7 +29,7 @@ Deployment target is pinned to macOS 13 (Ventura) via `-target $(ARCH)-apple-mac
 
 ### directory-detector is multi-file
 Other 3 tools are single `.swift` files, but `directory-detector/` is a directory:
-- `main.swift`, `DirectoryDetector.swift`, `CWDDetector.swift`, `TerminalDetector.swift`, `IDEDetector.swift`, `ProcessTree.swift`, `ClaudeCodeDetector.swift`, `MultiplexerDetector.swift`, `T3CodeDetector.swift`
+- `main.swift`, `DirectoryDetector.swift`, `CWDDetector.swift`, `TerminalDetector.swift`, `IDEDetector.swift`, `ProcessTree.swift`, `ClaudeCodeDetector.swift`, `MultiplexerDetector.swift`, `T3CodeDetector.swift`, `HerdrDetector.swift`
 - Requires `libproc-bridge.h` bridging header (uses libproc for CWD detection, 10-50x faster than lsof)
 
 ### text-field-detector container detection
@@ -38,7 +38,7 @@ Other 3 tools are single `.swift` files, but `directory-detector/` is a director
 - Stops at AXWindow level to avoid returning entire window bounds
 
 ### Supported applications (directory-detector)
-Terminal.app, iTerm2, Ghostty, Warp, WezTerm, Orca, cmux, T3 Code, JetBrains IDEs, VSCode/Insiders/VSCodium, Cursor, Windsurf, Zed, OpenCode, Antigravity, Kiro
+Terminal.app, iTerm2, Ghostty, Warp, WezTerm, Orca, cmux, T3 Code, Herdr, JetBrains IDEs, VSCode/Insiders/VSCodium, Cursor, Windsurf, Zed, OpenCode, Antigravity, Kiro
 
 ### cmux directory detection
 cmux (`com.cmuxterm.app`) exposes a `working directory` property on its focused terminal via its AppleScript dictionary (`Contents/Resources/cmux.sdef`). The detector uses AppleScript directly instead of process tree traversal — cmux embeds Ghostty internally, but the parent app's bundle ID is what `NSWorkspace.frontmostApplication` returns, so process-tree detection wouldn't run correctly without explicit handling.
@@ -67,6 +67,14 @@ T3 Code (`com.t3tools.t3code`) gives each thread a working directory — a git w
 - Do not use `$.lastVisitedAt` (or the renderer's `threadLastVisitedAtById` in localStorage) as the current thread: it is a read watermark set to the thread's own `updatedAt`, and revisiting an already-read thread within 10 minutes does not move it.
 - Do not read the `AXWebArea`'s `AXURL` for the thread id: it needs `AXManualAccessibility`, which switches T3 Code's renderer into full accessibility mode.
 - Not handled: the screen-reader title format (`screenReaderWindowTitle` setting), and threads of remote environments, which are not in the local database — such a thread returns nothing, or a local thread's directory when a local thread happens to have the same project and thread titles.
+
+### Herdr directory detection
+Herdr (`dev.herdr.app`, checked on 0.1.18) runs its terminals under the per-user `herdr-core` daemon, not under the app process, so process-tree detection finds no shells below the app pid. The detector uses Herdr's own CLIs instead — three calls, 6–9ms each, 50–90ms for the whole detection:
+- `<app executable> status` → `focused_pane`. The app binary is its CLI (`~/.local/bin/herdr-app` links to it), so it is taken from the running app's `executableURL`.
+- `<app executable> ls` → `spaces[].tabs[].terminals[]` maps that pane to a terminal id (e.g. `t1f`).
+- `herdr-core get <terminal> --json` (`~/.local/bin/herdr-core`, else `~/.local/share/herdr-core/current/Contents/MacOS/herdr-core`) → `foreground.cwd`, then `preferClaudeCodeCwd(over:shellPid:)` with the terminal's `pid`.
+
+Do not use the top-level `cwd` of `herdr-core ls`/`get` as the answer: it is where the terminal started and does not follow `cd` (it is only the fallback when `foreground` is missing). No open space, a missing CLI, or a CLI exceeding the 0.5s deadline returns an error without a directory, so the `app-directories.json` fallback applies.
 
 ### Claude Code sessions move without their shell (`ClaudeCodeDetector.swift`)
 Every terminal detector resolves a **shell's** working directory, but Claude Code's `Entering worktree(...)` performs a real `chdir()` inside the CLI process: the agent ends up in the worktree while its parent shell stays where the user started it, and nothing re-emits OSC 7, so Ghostty's `AXDocument`, `wezterm cli`, cmux's AppleScript and tty mtime all keep reporting the pre-move directory. Every terminal path therefore runs `preferClaudeCodeCwd` before returning, which prefers the agent process's own cwd and falls back to the shell's when no agent is running there. Two variants:

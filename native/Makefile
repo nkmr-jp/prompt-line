@@ -23,6 +23,7 @@ DIRECTORY_DETECTOR_SOURCES = \
 	directory-detector/ClaudeCodeDetector.swift \
 	directory-detector/MultiplexerDetector.swift \
 	directory-detector/T3CodeDetector.swift \
+	directory-detector/HerdrDetector.swift \
 	directory-detector/DirectoryDetector.swift \
 	directory-detector/main.swift
 
