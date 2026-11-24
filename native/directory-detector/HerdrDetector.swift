@@ -29,8 +29,10 @@ extension DirectoryDetector {
         }
 
         let foreground = terminal["foreground"] as? [String: Any]
+        // A space on another machine (`hc machine`) reports that machine's path;
+        // only a directory that exists here is usable.
         guard let cwd = (foreground?["cwd"] as? String) ?? (terminal["cwd"] as? String),
-              !cwd.isEmpty else {
+              !cwd.isEmpty, FileManager.default.fileExists(atPath: cwd) else {
             return (nil, nil)
         }
 

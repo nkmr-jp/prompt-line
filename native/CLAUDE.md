@@ -69,12 +69,12 @@ T3 Code (`com.t3tools.t3code`) gives each thread a working directory — a git w
 - Not handled: the screen-reader title format (`screenReaderWindowTitle` setting), and threads of remote environments, which are not in the local database — such a thread returns nothing, or a local thread's directory when a local thread happens to have the same project and thread titles.
 
 ### Herdr directory detection
-Herdr (`dev.herdr.app`, checked on 0.1.18) runs its terminals under the per-user `herdr-core` daemon, not under the app process, so process-tree detection finds no shells below the app pid. The detector uses Herdr's own CLIs instead — three calls, 6–9ms each, 50–90ms for the whole detection:
+Herdr (`dev.herdr.app`, checked on 0.1.18) runs its terminals under the per-user `herdr-core` daemon, not under the app process, so process-tree detection finds no shells below the app pid. The detector uses Herdr's own CLIs instead — three calls, 6–9ms each, about 30ms for the whole detection (the first run after an idle period took 0.4–0.5s):
 - `<app executable> status` → `focused_pane`. The app binary is its CLI (`~/.local/bin/herdr-app` links to it), so it is taken from the running app's `executableURL`.
 - `<app executable> ls` → `spaces[].tabs[].terminals[]` maps that pane to a terminal id (e.g. `t1f`).
 - `herdr-core get <terminal> --json` (`~/.local/bin/herdr-core`, else `~/.local/share/herdr-core/current/Contents/MacOS/herdr-core`) → `foreground.cwd`, then `preferClaudeCodeCwd(over:shellPid:)` with the terminal's `pid`.
 
-Do not use the top-level `cwd` of `herdr-core ls`/`get` as the answer: it is where the terminal started and does not follow `cd` (it is only the fallback when `foreground` is missing). No open space, a missing CLI, or a CLI exceeding the 0.5s deadline returns an error without a directory, so the `app-directories.json` fallback applies.
+Do not use the top-level `cwd` of `herdr-core ls`/`get` as the answer: it is where the terminal started and does not follow `cd` (it is only the fallback when `foreground` is missing). No open space, a missing CLI, a CLI exceeding its 0.5s deadline, or a cwd that does not exist on this Mac (a space on another machine) returns an error without a directory, so the `app-directories.json` fallback applies.
 
 ### Claude Code sessions move without their shell (`ClaudeCodeDetector.swift`)
 Every terminal detector resolves a **shell's** working directory, but Claude Code's `Entering worktree(...)` performs a real `chdir()` inside the CLI process: the agent ends up in the worktree while its parent shell stays where the user started it, and nothing re-emits OSC 7, so Ghostty's `AXDocument`, `wezterm cli`, cmux's AppleScript and tty mtime all keep reporting the pre-move directory. Every terminal path therefore runs `preferClaudeCodeCwd` before returning, which prefers the agent process's own cwd and falls back to the shell's when no agent is running there. Two variants:
