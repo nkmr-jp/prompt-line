@@ -483,9 +483,20 @@ extension DirectoryDetector {
         let finished = DispatchSemaphore(value: 0)
         process.terminationHandler = { _ in finished.signal() }
 
+        // stdout is drained while the CLI runs, not after it exits: reading only
+        // after exit stalls a CLI whose output outgrows the pipe buffer, and a
+        // daemon it spawns can inherit the pipe and keep EOF from ever arriving.
+        var output = Data()
+        let drained = DispatchSemaphore(value: 0)
+
         do {
             try process.run()
-            guard finished.wait(timeout: .now() + timeout) == .success else {
+            DispatchQueue.global(qos: .userInitiated).async {
+                output = pipe.fileHandleForReading.readDataToEndOfFile()
+                drained.signal()
+            }
+            let deadline = DispatchTime.now() + timeout
+            guard finished.wait(timeout: deadline) == .success else {
                 process.terminate()
                 if finished.wait(timeout: .now() + 0.1) == .timedOut {
                     kill(process.processIdentifier, SIGKILL)
@@ -493,8 +504,9 @@ extension DirectoryDetector {
                 }
                 return nil
             }
-            guard process.terminationStatus == 0 else { return nil }
-            return pipe.fileHandleForReading.readDataToEndOfFile()
+            guard process.terminationStatus == 0,
+                  drained.wait(timeout: max(deadline, .now() + 0.05)) == .success else { return nil }
+            return output
         } catch {
             return nil
         }

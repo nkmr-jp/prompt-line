@@ -36,7 +36,10 @@ extension DirectoryDetector {
 
         // `pid` is the terminal's own program (the shell). A Claude Code session
         // in it may have moved into a worktree that the shell never followed.
-        guard let pid = (terminal["pid"] as? NSNumber)?.int32Value else {
+        // A finished terminal keeps reporting its dead pid, which the system may
+        // have handed to an unrelated process by now, so it is not walked.
+        guard terminal["state"] as? String != "finished",
+              let pid = (terminal["pid"] as? NSNumber)?.int32Value else {
             return (cwd, nil)
         }
         return (preferClaudeCodeCwd(over: cwd, shellPid: pid), pid)
