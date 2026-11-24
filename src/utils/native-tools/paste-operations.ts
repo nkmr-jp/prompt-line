@@ -122,22 +122,16 @@ export function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promi
     // Only the identifier actually passed to keyboard-simulator is validated.
     // Checking the display name even when the bundle ID is used rejected apps
     // whose name has punctuation, e.g. "T3 Code (Beta)".
-    let args: string[];
     if (bundleId) {
       if (!isCommandArgumentSafe(bundleId)) {
         logger.error('Bundle ID contains unsafe characters:', { bundleId });
         reject(new Error('Bundle ID contains unsafe characters'));
         return;
       }
-      try {
-        bundleId = sanitizeCommandArgument(bundleId, 128);
-      } catch (sanitizeError) {
-        logger.error('Failed to sanitize command arguments:', sanitizeError);
-        reject(new Error('Invalid characters in app information'));
-        return;
-      }
+      bundleId = sanitizeCommandArgument(bundleId, 128);
     }
 
+    let args: string[];
     if (bundleId) {
       args = ['activate-and-paste-bundle', bundleId];
     } else {
@@ -146,13 +140,7 @@ export function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promi
         reject(new Error('App name contains unsafe characters'));
         return;
       }
-      try {
-        appName = sanitizeCommandArgument(appName, 128);
-      } catch (sanitizeError) {
-        logger.error('Failed to sanitize command arguments:', sanitizeError);
-        reject(new Error('Invalid characters in app information'));
-        return;
-      }
+      appName = sanitizeCommandArgument(appName, 128);
       if (!appName) {
         logger.error('App name is empty after sanitization');
         reject(new Error('App name is required'));
