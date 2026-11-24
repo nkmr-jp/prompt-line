@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.43.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.42.1...prompt-line-v0.43.0) (2026-11-24)
+
+
+### Features
+
+* **native:** detect Herdr focused pane directory (PL-24) ([#464](https://github.com/nkmr-jp/prompt-line/issues/464)) ([0ed1a84](https://github.com/nkmr-jp/prompt-line/commit/0ed1a84b4d57810f787a27de27b414154da5a290))
+
 ## [0.42.1](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.42.0...prompt-line-v0.42.1) (2026-11-24)
 
 
