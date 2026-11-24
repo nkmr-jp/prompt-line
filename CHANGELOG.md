@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.42.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.9...prompt-line-v0.42.0) (2026-11-24)
+
+
+### Features
+
+* **native:** detect T3 Code thread directory by window title (PL-22) ([#460](https://github.com/nkmr-jp/prompt-line/issues/460)) ([17fdb19](https://github.com/nkmr-jp/prompt-line/commit/17fdb1971ced371a348f735ea20367a08914ca4d))
+
 ## [0.41.9](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.41.8...prompt-line-v0.41.9) (2026-11-19)
 
 
