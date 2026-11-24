@@ -119,49 +119,52 @@ export function activateAndPasteWithNativeTool(appInfo: AppInfo | string): Promi
       return;
     }
 
-    // Validate inputs before sanitization
-    if (!isCommandArgumentSafe(appName)) {
-      logger.error('App name contains unsafe characters:', { appName });
-      reject(new Error('App name contains unsafe characters'));
-      return;
-    }
-
-    if (bundleId && !isCommandArgumentSafe(bundleId)) {
-      logger.error('Bundle ID contains unsafe characters:', { bundleId });
-      reject(new Error('Bundle ID contains unsafe characters'));
-      return;
-    }
-
-    // Sanitize inputs to prevent command injection
-    try {
-      appName = sanitizeCommandArgument(appName, 128);
-      if (bundleId) {
-        bundleId = sanitizeCommandArgument(bundleId, 128);
+    // Only the identifier actually passed to keyboard-simulator is validated.
+    // Checking the display name even when the bundle ID is used rejected apps
+    // whose name has punctuation, e.g. "T3 Code (Beta)".
+    let args: string[];
+    if (bundleId) {
+      if (!isCommandArgumentSafe(bundleId)) {
+        logger.error('Bundle ID contains unsafe characters:', { bundleId });
+        reject(new Error('Bundle ID contains unsafe characters'));
+        return;
       }
-    } catch (sanitizeError) {
-      logger.error('Failed to sanitize command arguments:', sanitizeError);
-      reject(new Error('Invalid characters in app information'));
-      return;
+      try {
+        bundleId = sanitizeCommandArgument(bundleId, 128);
+      } catch (sanitizeError) {
+        logger.error('Failed to sanitize command arguments:', sanitizeError);
+        reject(new Error('Invalid characters in app information'));
+        return;
+      }
     }
 
-    // Additional validation for empty values after sanitization
-    if (!appName || appName.length === 0) {
-      logger.error('App name is empty after sanitization');
-      reject(new Error('App name is required'));
-      return;
+    if (bundleId) {
+      args = ['activate-and-paste-bundle', bundleId];
+    } else {
+      if (!isCommandArgumentSafe(appName)) {
+        logger.error('App name contains unsafe characters:', { appName });
+        reject(new Error('App name contains unsafe characters'));
+        return;
+      }
+      try {
+        appName = sanitizeCommandArgument(appName, 128);
+      } catch (sanitizeError) {
+        logger.error('Failed to sanitize command arguments:', sanitizeError);
+        reject(new Error('Invalid characters in app information'));
+        return;
+      }
+      if (!appName) {
+        logger.error('App name is empty after sanitization');
+        reject(new Error('App name is required'));
+        return;
+      }
+      args = ['activate-and-paste-name', appName];
     }
 
     const options = {
       timeout: TIMEOUTS.ACTIVATE_PASTE_TIMEOUT,
       killSignal: 'SIGTERM' as const
     };
-
-    let args: string[];
-    if (bundleId && bundleId.length > 0) {
-      args = ['activate-and-paste-bundle', bundleId];
-    } else {
-      args = ['activate-and-paste-name', appName];
-    }
 
     execFile(KEYBOARD_SIMULATOR_PATH, args, options, (error, stdout, stderr) => {
       if (error) {
