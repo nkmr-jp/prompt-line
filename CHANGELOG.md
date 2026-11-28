@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.45.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.44.0...prompt-line-v0.45.0) (2026-11-28)
+
+
+### Features
+
+* **native:** detect T3 Code integrated terminal directory when focused ([#468](https://github.com/nkmr-jp/prompt-line/issues/468)) ([d533a0a](https://github.com/nkmr-jp/prompt-line/commit/d533a0ae292b1da1ce00e4224d40ac16705542cb))
+
 ## [0.44.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.43.0...prompt-line-v0.44.0) (2026-11-28)
 
 
