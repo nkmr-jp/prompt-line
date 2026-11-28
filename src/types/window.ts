@@ -42,6 +42,7 @@ export interface CustomShortcutEntry {
 export interface AppInfo {
   name: string;
   bundleId?: string | null;
+  terminalFocused?: boolean;
 }
 
 export interface SpaceInfo {

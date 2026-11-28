@@ -49,6 +49,57 @@ class WindowDetector {
         return ["error": "No active window found"]
     }
     
+    private static let t3CodeBundleIds: Set<String> = [
+        "com.t3tools.t3code",
+        "com.t3tools.t3code.custom"
+    ]
+
+    private static func isT3CodeTerminalFocused(appPid: pid_t) -> Bool {
+        let appRef = AXUIElementCreateApplication(appPid)
+        var focusedRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(appRef, kAXFocusedUIElementAttribute as CFString, &focusedRef) == .success,
+              let focused = focusedRef else {
+            return false
+        }
+        let element = focused as! AXUIElement
+
+        var roleRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef) == .success,
+              let role = roleRef as? String,
+              role == "AXTextArea" || role == "AXTextField" else {
+            return false
+        }
+
+        // Exclude Settings' ProviderAuthTerminal, which reuses the Ghostty terminal
+        // surface inside a container labeled "Provider sign-in terminal".
+        var parentRef: CFTypeRef?
+        if AXUIElementCopyAttributeValue(element, kAXParentAttribute as CFString, &parentRef) == .success,
+           let parent = parentRef {
+            var parentDescRef: CFTypeRef?
+            if AXUIElementCopyAttributeValue(parent as! AXUIElement, kAXDescriptionAttribute as CFString, &parentDescRef) == .success,
+               let parentDesc = parentDescRef as? String,
+               parentDesc.caseInsensitiveCompare("Provider sign-in terminal") == .orderedSame {
+                return false
+            }
+        }
+
+        var domClassesRef: CFTypeRef?
+        if AXUIElementCopyAttributeValue(element, "AXDOMClassList" as CFString, &domClassesRef) == .success,
+           let domClasses = domClassesRef as? [String],
+           domClasses.contains("t3-ghostty-input") || domClasses.contains("xterm-helper-textarea") {
+            return true
+        }
+
+        var descRef: CFTypeRef?
+        if AXUIElementCopyAttributeValue(element, kAXDescriptionAttribute as CFString, &descRef) == .success,
+           let desc = descRef as? String,
+           desc.caseInsensitiveCompare("Terminal input") == .orderedSame {
+            return true
+        }
+
+        return false
+    }
+
     static func getCurrentApp() -> [String: Any] {
         guard let frontApp = NSWorkspace.shared.frontmostApplication else {
             return ["error": "No active application found"]
@@ -60,6 +111,9 @@ class WindowDetector {
         
         if let bundleId = frontApp.bundleIdentifier {
             result["bundleId"] = bundleId
+            if t3CodeBundleIds.contains(bundleId) && isT3CodeTerminalFocused(appPid: frontApp.processIdentifier) {
+                result["terminalFocused"] = true
+            }
         } else {
             result["bundleId"] = NSNull()
         }

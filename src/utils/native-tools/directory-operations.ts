@@ -13,6 +13,8 @@ export interface DirectoryDetectionOptions {
   pid?: number;
   /** Source app bundle ID */
   bundleId?: string;
+  /** Hint captured before caller took focus that integrated terminal had focus */
+  terminalFocused?: boolean;
   /** File search settings for file listing */
   fileSearchSettings?: FileSearchSettings;
 }
@@ -42,6 +44,9 @@ export function detectCurrentDirectory(options?: DirectoryDetectionOptions): Pro
       if (options?.pid) {
         args.push('--pid', String(options.pid));
       }
+    }
+    if (options?.terminalFocused === true) {
+      args.push('--terminal-focused');
     }
 
     execFile(DIRECTORY_DETECTOR_PATH, args, execOptions, (error, stdout) => {

@@ -8,19 +8,21 @@ func main() {
     guard arguments.count >= 2 else {
         fputs("Usage: \(arguments[0]) <command> [options]\n", stderr)
         fputs("Commands:\n", stderr)
-        fputs("  detect [--pid <pid> --bundleId <bundleId>] - Detect current directory from active terminal/IDE\n", stderr)
+        fputs("  detect [--pid <pid> --bundleId <bundleId> --terminal-focused] - Detect current directory from active terminal/IDE\n", stderr)
         fputs("\nOptions:\n", stderr)
-        fputs("  --pid <pid>        - Use specific process ID instead of frontmost app\n", stderr)
-        fputs("  --bundleId <id>    - Bundle ID of the app (required with --pid)\n", stderr)
+        fputs("  --pid <pid>          - Use specific process ID instead of frontmost app\n", stderr)
+        fputs("  --bundleId <id>      - Bundle ID of the app (required with --pid)\n", stderr)
+        fputs("  --terminal-focused   - Hint that keyboard focus is inside the app's integrated terminal\n", stderr)
         exit(1)
     }
 
     let command = arguments[1]
     let result: [String: Any]
 
-    // Parse optional --pid and --bundleId arguments
+    // Parse optional --pid, --bundleId, and --terminal-focused arguments
     var overridePid: pid_t? = nil
     var overrideBundleId: String? = nil
+    var overrideTerminalFocused = false
 
     var i = 2
     while i < arguments.count {
@@ -32,6 +34,9 @@ func main() {
         } else if arguments[i] == "--bundleId" && i + 1 < arguments.count {
             overrideBundleId = arguments[i + 1]
             i += 2
+        } else if arguments[i] == "--terminal-focused" {
+            overrideTerminalFocused = true
+            i += 1
         } else {
             i += 1
         }
@@ -39,7 +44,11 @@ func main() {
 
     switch command {
     case "detect":
-        result = DirectoryDetector.detectCurrentDirectory(overridePid: overridePid, overrideBundleId: overrideBundleId)
+        result = DirectoryDetector.detectCurrentDirectory(
+            overridePid: overridePid,
+            overrideBundleId: overrideBundleId,
+            overrideTerminalFocused: overrideTerminalFocused
+        )
 
     default:
         fputs("Unknown command: \(command)\n", stderr)

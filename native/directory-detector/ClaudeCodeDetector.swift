@@ -191,7 +191,7 @@ extension DirectoryDetector {
     // MARK: - Process tree helpers
 
     /// Breadth-first walk of `rootPid` and its descendants, nearest first.
-    private static func walk(from rootPid: pid_t, in table: ProcessTable, maxDepth: Int) -> [pid_t] {
+    static func walk(from rootPid: pid_t, in table: ProcessTable, maxDepth: Int) -> [pid_t] {
         var visited: [pid_t] = [rootPid]
         var queue: [(pid: pid_t, depth: Int)] = [(rootPid, 0)]
         var index = 0
@@ -239,7 +239,7 @@ extension DirectoryDetector {
         return String(decoding: bytes, as: UTF8.self)
     }
 
-    private static func executablePath(_ pid: pid_t) -> String? {
+    static func executablePath(_ pid: pid_t) -> String? {
         var buffer = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
         let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
         return length > 0 ? String(cString: buffer) : nil
@@ -248,7 +248,7 @@ extension DirectoryDetector {
     /// Controlling tty of a process. Only the full BSD info carries the tty device,
     /// so this is asked for shell candidates only — those are owned by the current
     /// user, where the full flavour is permitted.
-    private static func ttyName(ofPid pid: pid_t) -> String? {
+    static func ttyName(ofPid pid: pid_t) -> String? {
         var info = proc_bsdinfo()
         let size = Int32(MemoryLayout<proc_bsdinfo>.size)
         let result = withUnsafeMutablePointer(to: &info) { pointer in
@@ -266,7 +266,7 @@ extension DirectoryDetector {
     /// Compare directories the way the filesystem sees them: the shell's cwd comes
     /// from the kernel (already canonical) while a terminal reports whatever `$PWD`
     /// held, which may still contain symlinks.
-    private static func canonicalPath(_ path: String) -> String {
+    static func canonicalPath(_ path: String) -> String {
         var resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
         if resolved.hasSuffix("/") && resolved != "/" {
             resolved.removeLast()

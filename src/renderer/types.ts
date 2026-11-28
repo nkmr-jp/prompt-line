@@ -20,6 +20,7 @@ export interface HistoryItem {
 export interface AppInfo {
   name: string;
   bundleId?: string | null;
+  terminalFocused?: boolean;
 }
 
 export interface UserSettings {

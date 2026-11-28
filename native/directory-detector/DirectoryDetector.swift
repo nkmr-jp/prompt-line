@@ -20,7 +20,12 @@ class DirectoryDetector {
     /// - Parameters:
     ///   - overridePid: Optional PID to use instead of frontmost app (for when caller window is in front)
     ///   - overrideBundleId: Optional bundle ID to use (can be used alone without PID - PID will be looked up)
-    static func detectCurrentDirectory(overridePid: pid_t? = nil, overrideBundleId: String? = nil) -> [String: Any] {
+    ///   - overrideTerminalFocused: Optional hint captured before caller took focus
+    static func detectCurrentDirectory(
+        overridePid: pid_t? = nil,
+        overrideBundleId: String? = nil,
+        overrideTerminalFocused: Bool = false
+    ) -> [String: Any] {
         let appName: String
         let bundleId: String
         let appPid: pid_t
@@ -175,7 +180,32 @@ class DirectoryDetector {
         }
 
         if isT3Code(bundleId) {
-            if let directory = getT3CodeDirectory(appPid: appPid, bundleId: bundleId) {
+            let isLiveFrontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier == appPid
+            let terminalFocused = overrideTerminalFocused || (isLiveFrontmost && isT3CodeTerminalFocused(appPid: appPid))
+            let threadInfo = getT3CodeThreadInfo(appPid: appPid, bundleId: bundleId)
+
+            if terminalFocused {
+                let terminal = getT3CodeTerminalDirectory(
+                    appPid: appPid,
+                    bundleId: bundleId,
+                    threadInfo: threadInfo
+                )
+                if let directory = terminal.directory {
+                    var response: [String: Any] = [
+                        "success": true,
+                        "directory": directory,
+                        "appName": appName,
+                        "bundleId": bundleId,
+                        "method": "t3code-terminal"
+                    ]
+                    if let pid = terminal.shellPid {
+                        response["pid"] = pid
+                    }
+                    return response
+                }
+            }
+
+            if let directory = threadInfo?.directory {
                 return [
                     "success": true,
                     "directory": directory,
