@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.44.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.43.0...prompt-line-v0.44.0) (2026-11-28)
+
+
+### Features
+
+* **native:** support T3 Code (Custom) directory detection ([#466](https://github.com/nkmr-jp/prompt-line/issues/466)) ([d6d3551](https://github.com/nkmr-jp/prompt-line/commit/d6d3551203f551b04b490fde83dfcfb976ac7130))
+
 ## [0.43.0](https://github.com/nkmr-jp/prompt-line/compare/prompt-line-v0.42.1...prompt-line-v0.43.0) (2026-11-24)
 
 
