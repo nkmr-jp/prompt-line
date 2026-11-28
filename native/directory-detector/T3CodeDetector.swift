@@ -4,9 +4,14 @@ import Foundation
 
 extension DirectoryDetector {
 
+    private static let stateDatabasePathsByBundleId: [String: String] = [
+        "com.t3tools.t3code": ".t3/userdata/statev2.sqlite",
+        "com.t3tools.t3code.custom": ".t3-custom/userdata/statev2.sqlite"
+    ]
+
     /// Check if bundle ID is T3 Code
     static func isT3Code(_ bundleId: String) -> Bool {
-        return bundleId == "com.t3tools.t3code"
+        return stateDatabasePathsByBundleId[bundleId] != nil
     }
 
     /// Working directory of the thread shown in T3 Code's focused window.
@@ -18,15 +23,16 @@ extension DirectoryDetector {
     /// matched against the server's thread projection to find the directory.
     static func getT3CodeDirectory(appPid: pid_t, bundleId: String) -> String? {
         guard let title = getWindowTitle(pid: appPid, bundleId: bundleId) else { return nil }
-        return t3CodeDirectory(forWindowTitle: title)
+        return t3CodeDirectory(forWindowTitle: title, bundleId: bundleId)
     }
 
-    static func t3CodeDirectory(forWindowTitle title: String) -> String? {
+    static func t3CodeDirectory(forWindowTitle title: String, bundleId: String = "com.t3tools.t3code") -> String? {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
+        guard !trimmed.isEmpty,
+              let relativeDbPath = stateDatabasePathsByBundleId[bundleId] else { return nil }
 
         let dbURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".t3/userdata/statev2.sqlite")
+            .appendingPathComponent(relativeDbPath)
         guard FileManager.default.fileExists(atPath: dbURL.path) else { return nil }
 
         // The title is arbitrary user text; a hex blob literal keeps it out of
