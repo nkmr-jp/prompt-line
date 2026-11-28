@@ -21,7 +21,25 @@ export interface DirectoryInfo {
   tty?: string;
   pid?: number;
   idePid?: number;
-  method?: 'tty' | 'window-title' | 'ide-shell-fast' | 'electron-pty';
+  method?:
+    | 'tty'
+    | 'window-title'
+    | 'ide-shell-fast'
+    | 'electron-pty'
+    | 'electron-ide-storage'
+    | 'jetbrains-recent-projects'
+    | 't3code-window-title'
+    | 't3code-terminal'
+    | 'herdr-cli'
+    | 'cmux-applescript'
+    | 'wezterm-cli'
+    | 'wezterm-process'
+    | 'ghostty-ax'
+    | 'ghostty-process'
+    | 'orca-cli'
+    | 'orca-process'
+    | 'warp-process'
+    | 'native-terminal-process';
   appName?: string;
   bundleId?: string;
   error?: string;

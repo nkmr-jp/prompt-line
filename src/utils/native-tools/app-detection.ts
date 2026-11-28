@@ -53,6 +53,9 @@ export function getCurrentApp(): Promise<AppInfo | null> {
             name: result.name,
             bundleId: result.bundleId === null ? null : result.bundleId
           };
+          if (result.terminalFocused === true) {
+            appInfo.terminalFocused = true;
+          }
 
           flushNative(nt, { ok: true });
           resolve(appInfo);

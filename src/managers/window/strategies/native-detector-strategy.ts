@@ -98,9 +98,14 @@ export class NativeDetectorStrategy implements IDirectoryDetectionStrategy {
     // Step 1: Detect directory using directory-detector
     const detectArgs: string[] = ['detect'];
 
-    // Add bundleId if available for accurate directory detection
-    if (previousApp && typeof previousApp === 'object' && previousApp.bundleId) {
-      detectArgs.push('--bundleId', previousApp.bundleId);
+    // Add bundleId and pre-reveal terminal focus hint if available
+    if (previousApp && typeof previousApp === 'object') {
+      if (previousApp.bundleId) {
+        detectArgs.push('--bundleId', previousApp.bundleId);
+      }
+      if (previousApp.terminalFocused === true) {
+        detectArgs.push('--terminal-focused');
+      }
     }
 
     const detectOptions = {

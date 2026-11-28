@@ -135,6 +135,25 @@ describe('Utils', () => {
             Object.defineProperty(process, 'platform', { value: originalPlatform });
         });
 
+        test('should preserve terminalFocused when true', async () => {
+            const originalPlatform = process.platform;
+            Object.defineProperty(process, 'platform', { value: 'darwin' });
+
+            (mockedExec as any).mockImplementation((_file: string, _args: string[], _options: any, callback: ExecCallback) => {
+                callback(null, '{"name":"T3 Code (Custom)","bundleId":"com.t3tools.t3code.custom","terminalFocused":true}', '');
+                return null as any;
+            });
+
+            const result = await getCurrentApp();
+            expect(result).toEqual({
+                name: 'T3 Code (Custom)',
+                bundleId: 'com.t3tools.t3code.custom',
+                terminalFocused: true
+            });
+
+            Object.defineProperty(process, 'platform', { value: originalPlatform });
+        });
+
         test('should handle native tool errors', async () => {
             const originalPlatform = process.platform;
             Object.defineProperty(process, 'platform', { value: 'darwin' });
